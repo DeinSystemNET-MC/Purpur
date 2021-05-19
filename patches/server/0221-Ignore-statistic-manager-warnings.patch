@@ -1,0 +1,29 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: derklaro <pasqual.koschmieder@gmail.com>
+Date: Thu, 20 May 2021 01:32:24 +0200
+Subject: [PATCH] Ignore statistic manager warnings
+
+
+diff --git a/src/main/java/net/minecraft/stats/ServerStatisticManager.java b/src/main/java/net/minecraft/stats/ServerStatisticManager.java
+index 1efab34e03199879f5e0dcee0ff79ce2c23c73bc..9b48f3cb640696b65ecac59231544be9c0424571 100644
+--- a/src/main/java/net/minecraft/stats/ServerStatisticManager.java
++++ b/src/main/java/net/minecraft/stats/ServerStatisticManager.java
+@@ -126,15 +126,15 @@ public class ServerStatisticManager extends StatisticManager {
+                                             SystemUtils.a(this.a(statisticwrapper, s2), (statistic) -> {
+                                                 this.a.put(statistic, nbttagcompound2.getInt(s2));
+                                             }, () -> {
+-                                                ServerStatisticManager.LOGGER.warn("Invalid statistic in {}: Don't know what {} is", this.d, s2);
++                                                // ServerStatisticManager.LOGGER.warn("Invalid statistic in {}: Don't know what {} is", this.d, s2); // derklaro
+                                             });
+                                         } else {
+-                                            ServerStatisticManager.LOGGER.warn("Invalid statistic value in {}: Don't know what {} is for key {}", this.d, nbttagcompound2.get(s2), s2);
++                                            // ServerStatisticManager.LOGGER.warn("Invalid statistic value in {}: Don't know what {} is for key {}", this.d, nbttagcompound2.get(s2), s2); // derklaro
+                                         }
+                                     }
+ 
+                                 }, () -> {
+-                                    ServerStatisticManager.LOGGER.warn("Invalid statistic type in {}: Don't know what {} is", this.d, s1);
++                                    // ServerStatisticManager.LOGGER.warn("Invalid statistic type in {}: Don't know what {} is", this.d, s1); // derklaro
+                                 });
+                             }
+                         }

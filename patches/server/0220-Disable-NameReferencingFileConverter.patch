@@ -1,0 +1,31 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: derklaro <pasqual.koschmieder@gmail.com>
+Date: Thu, 20 May 2021 01:30:36 +0200
+Subject: [PATCH] Disable NameReferencingFileConverter
+
+
+diff --git a/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java b/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
+index 9d6e0a85052555aa2da0046cf6baf18b753de78b..4b3fcabee46035c5b21725f1fa345da34929ed7b 100644
+--- a/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
++++ b/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
+@@ -199,7 +199,7 @@ public class DedicatedServer extends MinecraftServer implements IMinecraftServer
+         org.spigotmc.SpigotConfig.registerCommands();
+         // Spigot end
+         // Paper start - moved up to right after PlayerList creation but before file load/save
+-        if (this.convertNames()) {
++        if (false && this.convertNames()) { // derklaro - disable file conversation
+             this.getUserCache().save(false); // Paper
+         }
+         this.getPlayerList().loadAndSaveFiles(); // Must be after convertNames
+diff --git a/src/main/java/net/minecraft/server/players/NameReferencingFileConverter.java b/src/main/java/net/minecraft/server/players/NameReferencingFileConverter.java
+index 8c1f328ca1ba12ed63ec7bd7efad54ff633ba802..ff9d52a9d7c0dfad1e0eee8df5b3b8d4f2c03f67 100644
+--- a/src/main/java/net/minecraft/server/players/NameReferencingFileConverter.java
++++ b/src/main/java/net/minecraft/server/players/NameReferencingFileConverter.java
+@@ -434,6 +434,7 @@ public class NameReferencingFileConverter {
+     }
+ 
+     public static boolean e(MinecraftServer minecraftserver) {
++        if (true) return true; // derklaro - disable file converter
+         boolean flag = b();
+ 
+         flag = flag && f(minecraftserver);
