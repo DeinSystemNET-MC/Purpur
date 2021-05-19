@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: derklaro <pasqual.koschmieder@gmail.com>
-Date: Thu, 20 May 2021 00:41:11 +0200
-Subject: [PATCH] General work for deinsystem
+Date: Thu, 20 May 2021 01:12:14 +0200
+Subject: [PATCH] Merge upstream changes (Paper)
 
 
 diff --git a/src/main/java/com/destroystokyo/paper/MSPTCommand.java b/src/main/java/com/destroystokyo/paper/MSPTCommand.java
@@ -140,7 +140,7 @@ index 0000000000000000000000000000000000000000..207f8960ef47c97ec31a5e4bfeb04578
 +  }
 +}
 diff --git a/src/main/java/net/minecraft/commands/CommandDispatcher.java b/src/main/java/net/minecraft/commands/CommandDispatcher.java
-index 0703148d079d86921dac42ef90e514d3584bf569..47cf484b3c36a011b99bec7e36cea542de173815 100644
+index c5babb19a3b4d20c4f9e414d5654d18c570d2b2d..16b58a6efdce7c87632c59a963e99a4bad807885 100644
 --- a/src/main/java/net/minecraft/commands/CommandDispatcher.java
 +++ b/src/main/java/net/minecraft/commands/CommandDispatcher.java
 @@ -118,87 +118,87 @@ public class CommandDispatcher {
@@ -299,7 +299,7 @@ index e4bf350cb650d6deb0cea5f85fee66c6c92bc659..42e814731ab8fbb251119229c194523f
              this.b[i] = short0;
              this.c[i] = (chunksection != null) ? chunksection.getType(SectionPosition.a(short0), SectionPosition.b(short0), SectionPosition.c(short0)) : net.minecraft.world.level.block.Blocks.AIR.getBlockData(); // CraftBukkit - SPIGOT-6076, Mojang bug when empty chunk section notified
 diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
-index 176fc4c8b7c5ef45b29cb8aaa1b1ff16dbfc9b7c..0a465fae27a40d73276e5a1f120e1338e551915c 100644
+index f0db6072ebce4b60dcf3b4bea774ddabb3061302..a3d8f517e817b88b543254bce13db22d6a913666 100644
 --- a/src/main/java/net/minecraft/server/MinecraftServer.java
 +++ b/src/main/java/net/minecraft/server/MinecraftServer.java
 @@ -225,6 +225,11 @@ public abstract class MinecraftServer extends IAsyncTaskHandlerReentrant<TickTas
@@ -379,7 +379,7 @@ index 176fc4c8b7c5ef45b29cb8aaa1b1ff16dbfc9b7c..0a465fae27a40d73276e5a1f120e1338
          try {
              this.H = MinecraftEncryption.b();
 diff --git a/src/main/java/net/minecraft/server/commands/CommandGamemode.java b/src/main/java/net/minecraft/server/commands/CommandGamemode.java
-index f004d027d673ec09c768c3ab0734b6b099921ef9..a74b1d6e6cf0927ec617c9de9c8db8415d73db42 100644
+index 94af223c5d241f9f26a12fcb8bf6343953ff80e5..6bf198905ffc461ee9573f0cea7a8001537de3b9 100644
 --- a/src/main/java/net/minecraft/server/commands/CommandGamemode.java
 +++ b/src/main/java/net/minecraft/server/commands/CommandGamemode.java
 @@ -1,12 +1,8 @@
@@ -431,7 +431,7 @@ index f004d027d673ec09c768c3ab0734b6b099921ef9..a74b1d6e6cf0927ec617c9de9c8db841
              return commandlistenerwrapper.hasPermission(2);
          });
          EnumGamemode[] aenumgamemode = EnumGamemode.values();
-@@ -37,44 +56,54 @@ public class CommandGamemode {
+@@ -37,44 +56,50 @@ public class CommandGamemode {
          }
  
          commanddispatcher.register(literalargumentbuilder);
@@ -451,6 +451,9 @@ index f004d027d673ec09c768c3ab0734b6b099921ef9..a74b1d6e6cf0927ec617c9de9c8db841
 -            if (commandlistenerwrapper.getWorld().getGameRules().getBoolean(GameRules.SEND_COMMAND_FEEDBACK)) {
 -                entityplayer.sendMessage(new ChatMessage("gameMode.changed", new Object[]{chatmessage}), SystemUtils.b);
 -            }
+-
+-            commandlistenerwrapper.sendMessage(new ChatMessage("commands.gamemode.success.other", new Object[]{entityplayer.getScoreboardDisplayName(), chatmessage}), true);
+-        }
 +    if (commandlistenerwrapper.getEntity() == entityplayer) {
 +      commandlistenerwrapper.sendMessage(new ChatMessage("commands.gamemode.success.self", chatmessage), true); // derklaro
 +    } else {
@@ -458,21 +461,8 @@ index f004d027d673ec09c768c3ab0734b6b099921ef9..a74b1d6e6cf0927ec617c9de9c8db841
 +        entityplayer.sendMessage(new ChatMessage("gameMode.changed", chatmessage), SystemUtils.b); // derklaro
 +      }
  
--            commandlistenerwrapper.sendMessage(new ChatMessage("commands.gamemode.success.other", new Object[]{entityplayer.getScoreboardDisplayName(), chatmessage}), true);
--        }
 +      commandlistenerwrapper.sendMessage(new ChatMessage("commands.gamemode.success.other", entityplayer.getScoreboardDisplayName(), chatmessage), true); // derklaro
-+    }
-+
-+  }
- 
-+  private static int a(CommandContext<CommandListenerWrapper> commandcontext, Collection<EntityPlayer> collection, EnumGamemode enumgamemode) {
-+    if (net.pl3x.purpur.PurpurConfig.commandGamemodeRequiresPermission && !commandcontext.getSource().testPermission(2, "minecraft.command.gamemode." + enumgamemode.b())) {
-+      return 0; // Purpur
      }
-+    int i = 0;
-+    // derklaro start
-+    /*
-+    Iterator iterator = collection.iterator();
  
 -    private static int a(CommandContext<CommandListenerWrapper> commandcontext, Collection<EntityPlayer> collection, EnumGamemode enumgamemode) {
 -        if (net.pl3x.purpur.PurpurConfig.commandGamemodeRequiresPermission && !commandcontext.getSource().testPermission(2, "minecraft.command.gamemode." + enumgamemode.b())) return 0; // Purpur
@@ -483,33 +473,40 @@ index f004d027d673ec09c768c3ab0734b6b099921ef9..a74b1d6e6cf0927ec617c9de9c8db841
 -            EntityPlayer entityplayer = (EntityPlayer) iterator.next();
 -
 -            if (entityplayer.playerInteractManager.getGameMode() != enumgamemode) {
--                entityplayer.a(enumgamemode);
--                // CraftBukkit start - handle event cancelling the change
--                if (entityplayer.playerInteractManager.getGameMode() != enumgamemode) {
--                    commandcontext.getSource().sendFailureMessage(new net.minecraft.network.chat.ChatComponentText("Failed to set the gamemode of '" + entityplayer.getName() + "'"));
+-                // Paper start - handle event cancelling the change
+-                org.bukkit.event.player.PlayerGameModeChangeEvent event = entityplayer.setGamemode(enumgamemode, org.bukkit.event.player.PlayerGameModeChangeEvent.Cause.COMMAND, net.kyori.adventure.text.Component.text("Failed to set the gamemode of '" + entityplayer.getName() + "'", net.kyori.adventure.text.format.NamedTextColor.RED));
+-                if (event != null && event.isCancelled()) {
+-                    commandcontext.getSource().sendMessage(io.papermc.paper.adventure.PaperAdventure.asVanilla(event.cancelMessage()), false);
 -                    continue;
 -                }
--                // CraftBukkit end
+-                // Paper end
 -                a((CommandListenerWrapper) commandcontext.getSource(), entityplayer, enumgamemode);
 -                ++i;
 -            }
 -        }
++  }
++
++  private static int a(CommandContext<CommandListenerWrapper> commandcontext, Collection<EntityPlayer> collection, EnumGamemode enumgamemode) {
++    if (net.pl3x.purpur.PurpurConfig.commandGamemodeRequiresPermission && !commandcontext.getSource().testPermission(2, "minecraft.command.gamemode." + enumgamemode.b())) return 0; // Purpur
++    int i = 0;
++    // derklaro start
++    /*
++    Iterator iterator = collection.iterator();
+ 
+-        return i;
 +    while (iterator.hasNext()) {
 +      EntityPlayer entityplayer = (EntityPlayer) iterator.next();
-+
 +     */
 +    for (EntityPlayer entityplayer : collection) {
 +    // derklaro end
- 
--        return i;
 +      if (entityplayer.playerInteractManager.getGameMode() != enumgamemode) {
-+        entityplayer.a(enumgamemode);
-+        // CraftBukkit start - handle event cancelling the change
-+        if (entityplayer.playerInteractManager.getGameMode() != enumgamemode) {
-+          commandcontext.getSource().sendFailureMessage(new net.minecraft.network.chat.ChatComponentText("Failed to set the gamemode of '" + entityplayer.getName() + "'"));
++        // Paper start - handle event cancelling the change
++        org.bukkit.event.player.PlayerGameModeChangeEvent event = entityplayer.setGamemode(enumgamemode, org.bukkit.event.player.PlayerGameModeChangeEvent.Cause.COMMAND, net.kyori.adventure.text.Component.text("Failed to set the gamemode of '" + entityplayer.getName() + "'", net.kyori.adventure.text.format.NamedTextColor.RED));
++        if (event != null && event.isCancelled()) {
++          commandcontext.getSource().sendMessage(io.papermc.paper.adventure.PaperAdventure.asVanilla(event.cancelMessage()), false);
 +          continue;
 +        }
-+        // CraftBukkit end
++        // Paper end
 +        a((CommandListenerWrapper) commandcontext.getSource(), entityplayer, enumgamemode);
 +        ++i;
 +      }
@@ -662,7 +659,7 @@ index 92836f1200461ba7fff2f8bcb5e1755ec9a0c9ce..c0b69df40bd18aff1a128af9be2acdd7
              this.listeningChannels.add(((ServerBootstrap) ((ServerBootstrap) (new ServerBootstrap()).channel(oclass)).childHandler(new ChannelInitializer<Channel>() {
                  protected void initChannel(Channel channel) throws Exception {
 diff --git a/src/main/java/net/pl3x/purpur/PurpurConfig.java b/src/main/java/net/pl3x/purpur/PurpurConfig.java
-index 61f385021e8e870a4cb1b9c2744105988c8b709a..5183595d945362d34ef7d46fd2d8d3ccb2350bcd 100644
+index 5a228c14a6e6335399f3436419deb51420082ad2..dcaba53d9083d346a2f083d620099f7e4d887e2e 100644
 --- a/src/main/java/net/pl3x/purpur/PurpurConfig.java
 +++ b/src/main/java/net/pl3x/purpur/PurpurConfig.java
 @@ -3,6 +3,7 @@ package net.pl3x.purpur;
@@ -697,10 +694,10 @@ index cabfcebf9f944f7a2a2a1cffc7401435803a8741..4ae987f8aa83db7df66be59bd39ea4a5
          final Component history = getHistory();
  
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index 7cfa041d646f602221cbb0d8899ff682db7ca9ee..6c975925c2daa31d33b4a90d1da987d9cb15401f 100644
+index 12282aaea7b1dce8f958914e41137b17544a159e..63a0df2064a1d1ca8adb3d5ba42e62d10b9e7a4c 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-@@ -233,7 +233,7 @@ import javax.annotation.Nullable; // Paper
+@@ -230,7 +230,7 @@ import javax.annotation.Nullable; // Paper
  import javax.annotation.Nonnull; // Paper
  
  public final class CraftServer implements Server {
@@ -709,7 +706,7 @@ index 7cfa041d646f602221cbb0d8899ff682db7ca9ee..6c975925c2daa31d33b4a90d1da987d9
      private final String serverVersion;
      private final String bukkitVersion = Versioning.getBukkitVersion();
      private final Logger logger = Logger.getLogger("Minecraft");
-@@ -286,7 +286,17 @@ public final class CraftServer implements Server {
+@@ -283,7 +283,17 @@ public final class CraftServer implements Server {
                  return player.getBukkitEntity();
              }
          }));
@@ -728,7 +725,7 @@ index 7cfa041d646f602221cbb0d8899ff682db7ca9ee..6c975925c2daa31d33b4a90d1da987d9
  
          Bukkit.setServer(this);
  
-@@ -351,7 +361,7 @@ public final class CraftServer implements Server {
+@@ -348,7 +358,7 @@ public final class CraftServer implements Server {
          warningState = WarningState.value(configuration.getString("settings.deprecated-verbose"));
          TicketType.PLUGIN.loadPeriod = Math.min(20, configuration.getInt("chunk-gc.period-in-ticks")); // Paper - cap plugin loads to 1 second
          minimumAPI = configuration.getString("settings.minimum-api");
@@ -737,7 +734,7 @@ index 7cfa041d646f602221cbb0d8899ff682db7ca9ee..6c975925c2daa31d33b4a90d1da987d9
          datapackManager = new PaperDatapackManager(console.getResourcePackRepository()); // Paper
      }
  
-@@ -2320,12 +2330,17 @@ public final class CraftServer implements Server {
+@@ -2332,12 +2342,17 @@ public final class CraftServer implements Server {
      // Paper - Add getTPS API - Further improve tick loop
      @Override
      public double[] getTPS() {
