@@ -1,0 +1,77 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: derklaro <pasqual.koschmieder@gmail.com>
+Date: Thu, 20 May 2021 00:41:34 +0200
+Subject: [PATCH] General work for deinsystem
+
+
+diff --git a/src/main/java/org/bukkit/command/SimpleCommandMap.java b/src/main/java/org/bukkit/command/SimpleCommandMap.java
+index 1e0eb099933dded131d3c4db8f3cca2b6ed8e064..bb90ec56a8b93366bd4decb5a6d098b4aa409814 100644
+--- a/src/main/java/org/bukkit/command/SimpleCommandMap.java
++++ b/src/main/java/org/bukkit/command/SimpleCommandMap.java
+@@ -36,13 +36,13 @@ public class SimpleCommandMap implements CommandMap {
+ 
+     private void setDefaultCommands() {
+         register("bukkit", new VersionCommand("version"));
+-        register("bukkit", new ReloadCommand("reload"));
++        // register("bukkit", new ReloadCommand("reload")); // derklaro
+         register("bukkit", new PluginsCommand("plugins"));
+         register("bukkit", new co.aikar.timings.TimingsCommand("timings")); // Paper
+     }
+ 
+     public void setFallbackCommands() {
+-        register("bukkit", new HelpCommand());
++        // register("bukkit", new HelpCommand()); // derklaro
+     }
+ 
+     /**
+diff --git a/src/main/java/org/bukkit/command/defaults/VersionCommand.java b/src/main/java/org/bukkit/command/defaults/VersionCommand.java
+index 4c2ddc722a9dc4011906ad9530b13fa9be1d3ff9..67001553dc63dd21cfdc3456c509c6b65670ba61 100644
+--- a/src/main/java/org/bukkit/command/defaults/VersionCommand.java
++++ b/src/main/java/org/bukkit/command/defaults/VersionCommand.java
+@@ -18,6 +18,7 @@ import java.util.List;
+ import java.util.Set;
+ import java.util.concurrent.locks.ReentrantLock;
+ import net.kyori.adventure.text.Component; // Paper
++import net.kyori.adventure.text.format.NamedTextColor;
+ import org.apache.commons.lang.Validate;
+ import org.bukkit.Bukkit;
+ import org.bukkit.ChatColor;
+@@ -40,19 +41,23 @@ public class VersionCommand extends BukkitCommand {
+     public VersionCommand(@NotNull String name) {
+         super(name);
+ 
+-        this.description = "Gets the version of this server including any plugins in use";
+-        this.usageMessage = "/version [plugin name]";
+-        this.setPermission("bukkit.command.version");
++        // this.description = "Gets the version of this server including any plugins in use"; // derklaro
++        this.description = "Gets the version of this server"; // derklaro
++        this.usageMessage = "/version";
++        // this.usageMessage = "/version [plugin name]"; // derklaro
++        // this.setPermission("bukkit.command.version"); // derklaro
+         this.setAliases(Arrays.asList("ver", "about"));
+     }
+ 
+     @Override
+     public boolean execute(@NotNull CommandSender sender, @NotNull String currentAlias, @NotNull String[] args) {
+-        if (!testPermission(sender)) return true;
++        //if (!testPermission(sender)) return true; // derklaro
+ 
+-        if (args.length == 0) {
++        //if (args.length == 0) { // derklaro
+             //sender.sendMessage("This server is running " + Bukkit.getName() + " version " + Bukkit.getVersion() + " (Implementing API version " + Bukkit.getBukkitVersion() + ")"); // Paper - moved to setVersionMessage
+-            sendVersion(sender);
++            // sendVersion(sender); // derklaro
++            sender.sendMessage(Component.text("This server is running " + Bukkit.getName() + " version " + Bukkit.getVersion(), NamedTextColor.GOLD)); // derklaro
++        /* derklaro start
+         } else {
+             StringBuilder name = new StringBuilder();
+ 
+@@ -85,6 +90,8 @@ public class VersionCommand extends BukkitCommand {
+                 sender.sendMessage("Use /plugins to get a list of plugins.");
+             }
+         }
++        */
++        // derklaro end
+         return true;
+     }
+ 

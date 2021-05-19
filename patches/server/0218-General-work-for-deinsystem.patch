@@ -1,0 +1,818 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: derklaro <pasqual.koschmieder@gmail.com>
+Date: Thu, 20 May 2021 00:41:11 +0200
+Subject: [PATCH] General work for deinsystem
+
+
+diff --git a/src/main/java/com/destroystokyo/paper/MSPTCommand.java b/src/main/java/com/destroystokyo/paper/MSPTCommand.java
+index d0211d4f39f9d6af1d751ac66342b42cc6d7ba6d..7fe6c453c9a2be671c41060fd5bd6bfe57174ed8 100644
+--- a/src/main/java/com/destroystokyo/paper/MSPTCommand.java
++++ b/src/main/java/com/destroystokyo/paper/MSPTCommand.java
+@@ -43,7 +43,7 @@ public class MSPTCommand extends Command {
+         return true;
+     }
+ 
+-    private static List<String> eval(long[] times) {
++    public static List<String> eval(long[] times) { // derklaro
+         long min = Integer.MAX_VALUE;
+         long max = 0L;
+         long total = 0L;
+diff --git a/src/main/java/com/destroystokyo/paper/PaperConfig.java b/src/main/java/com/destroystokyo/paper/PaperConfig.java
+index a0ed8ed1d6b89a4f10dff645e09eaff303fb3f8a..16e5050a17cb5311c06ccf52db3b4f349a84ff28 100644
+--- a/src/main/java/com/destroystokyo/paper/PaperConfig.java
++++ b/src/main/java/com/destroystokyo/paper/PaperConfig.java
+@@ -68,8 +68,8 @@ public class PaperConfig {
+         verbose = getBoolean("verbose", false);
+ 
+         commands = new HashMap<String, Command>();
+-        commands.put("paper", new PaperCommand("paper"));
+-        commands.put("mspt", new MSPTCommand("mspt"));
++        // commands.put("paper", new PaperCommand("paper")); // derklaro
++        // commands.put("mspt", new MSPTCommand("mspt")); // derklaro
+ 
+         version = getInt("config-version", 20);
+         set("config-version", 20);
+diff --git a/src/main/java/gg/airplane/commands/AirplaneCommands.java b/src/main/java/gg/airplane/commands/AirplaneCommands.java
+index 66b20250a26d005427601b1cdee43bdd9eba70cc..c20d7a92a7c72133f33ab36dc75687081a310101 100644
+--- a/src/main/java/gg/airplane/commands/AirplaneCommands.java
++++ b/src/main/java/gg/airplane/commands/AirplaneCommands.java
+@@ -6,7 +6,7 @@ import net.minecraft.server.MinecraftServer;
+ 
+ public class AirplaneCommands {
+     public static void init() {
+-        MinecraftServer.getServer().server.getCommandMap().register("airplane", "Airplane", new AirplaneCommand());
+-        MinecraftServer.getServer().server.getCommandMap().register("flare", "Airplane", new FlareCommand());
++        // MinecraftServer.getServer().server.getCommandMap().register("airplane", "Airplane", new AirplaneCommand()); // derklaro
++        // MinecraftServer.getServer().server.getCommandMap().register("flare", "Airplane", new FlareCommand()); // derklaro
+     }
+ }
+diff --git a/src/main/java/me/derklaro/BetterTicksPerSecondCommand.java b/src/main/java/me/derklaro/BetterTicksPerSecondCommand.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..207f8960ef47c97ec31a5e4bfeb045785a438440
+--- /dev/null
++++ b/src/main/java/me/derklaro/BetterTicksPerSecondCommand.java
+@@ -0,0 +1,87 @@
++package me.derklaro;
++
++import com.sun.management.OperatingSystemMXBean;
++import net.minecraft.server.MinecraftServer;
++import org.bukkit.Bukkit;
++import org.bukkit.ChatColor;
++import org.bukkit.command.Command;
++import org.bukkit.command.CommandSender;
++import org.jetbrains.annotations.NotNull;
++
++import java.lang.management.ManagementFactory;
++import java.util.ArrayList;
++import java.util.Arrays;
++import java.util.List;
++import java.util.stream.Collectors;
++
++import static com.destroystokyo.paper.MSPTCommand.eval;
++
++public class BetterTicksPerSecondCommand extends Command {
++
++  public BetterTicksPerSecondCommand() {
++    super("tps");
++    this.description = "Server health check";
++    this.usageMessage = "/tps";
++    this.setPermission("bukkit.command.tps");
++  }
++
++  private static String format(double tps) {
++    return ((tps > 18.0) ? ChatColor.GREEN : (tps > 16.0) ? ChatColor.YELLOW : ChatColor.RED)
++        + ((tps > 20.0) ? "*" : "") + Math.min(Math.round(tps * 100.0) / 100.0, 20.0);
++  }
++
++  private static String formatPercent(long percent) {
++    return (percent < 20 ? ChatColor.GREEN : percent > 60 ? ChatColor.RED : ChatColor.YELLOW) + Long.toString(percent);
++  }
++
++  private static String formatMemory(long memory) {
++    return Long.toString(memory / (1024 * 1024));
++  }
++
++  private static String formatUsedMemory() {
++    long freeMemory = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
++    return (freeMemory > 200 ? ChatColor.GREEN : freeMemory < 100 ? ChatColor.RED : ChatColor.YELLOW) + formatMemory(freeMemory);
++  }
++
++  private static long toPercentage(double input) {
++    return Math.round(input < 0 ? -1 : input * 100);
++  }
++
++  private static String getProcessCpuLoad() {
++    return formatPercent(toPercentage(((OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean()).getProcessCpuLoad()));
++  }
++
++  private static String getSystemCpuLoad() {
++    return formatPercent(toPercentage(((OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean()).getSystemCpuLoad()));
++  }
++
++  @Override
++  public boolean execute(@NotNull CommandSender sender, @NotNull String commandLabel, String @NotNull [] args) {
++    if (!super.testPermission(sender)) {
++      return true;
++    }
++
++    String tpsLine = Arrays.stream(Bukkit.getTPS()).boxed().map(BetterTicksPerSecondCommand::format).collect(Collectors.joining("§7, "));
++
++    List<String> times = new ArrayList<>();
++    times.addAll(eval(MinecraftServer.getServer().tickTimes5s.getTimes()));
++    times.addAll(eval(MinecraftServer.getServer().tickTimes60s.getTimes()));
++    times.addAll(eval(MinecraftServer.getServer().tickTimes5m.getTimes()));
++
++    sender.sendMessage(new String[]{
++        "§8[§6§l⚡§8]§7 TPS from last 5s, 10s, 1m, 5m, 10m, 15m:",
++        "§8[§6§l⚡§8]§7 " + tpsLine,
++        " ",
++        "§8[§6§l⚡§8]§7 Tick times §8(§7avg§8/§7min§8/§7max§8)§7 from last 5s, 1m, 5m:",
++        String.format("§8[§6§l⚡§8]§7 %s§8/%s§8/%s§8, %s§8/%s§8/%s§8, %s§8/%s§8/%s", times.toArray()),
++        " ",
++        "§8[§6§l⚡§8]§7 CPU usage §8(§7P§8/§7S§8)§7:",
++        String.format("§8[§6§l⚡§8]§7 %s§8/%s§8/§7100 percent", getProcessCpuLoad(), getSystemCpuLoad()),
++        " ",
++        "§8[§6§l⚡§8]§7 Memory usage §8(§7U§8/§7T§8/§7M§8)§7:",
++        String.format("§8[§6§l⚡§8]§7 %s§8/§7%s§8/§7%s MB", formatUsedMemory(), formatMemory(Runtime.getRuntime().totalMemory()), formatMemory(Runtime.getRuntime().maxMemory()))
++    });
++
++    return false;
++  }
++}
+diff --git a/src/main/java/net/minecraft/commands/CommandDispatcher.java b/src/main/java/net/minecraft/commands/CommandDispatcher.java
+index 0703148d079d86921dac42ef90e514d3584bf569..47cf484b3c36a011b99bec7e36cea542de173815 100644
+--- a/src/main/java/net/minecraft/commands/CommandDispatcher.java
++++ b/src/main/java/net/minecraft/commands/CommandDispatcher.java
+@@ -118,87 +118,87 @@ public class CommandDispatcher {
+ 
+     public CommandDispatcher(CommandDispatcher.ServerType commanddispatcher_servertype) {
+         this(); // CraftBukkit
+-        CommandAdvancement.a(this.b);
+-        CommandAttribute.a(this.b);
++        // CommandAdvancement.a(this.b); // derklaro
++        // CommandAttribute.a(this.b); // derklaro
+         CommandExecute.a(this.b);
+-        CommandBossBar.a(this.b);
++        // CommandBossBar.a(this.b); // derklaro
+         CommandClear.a(this.b);
+-        CommandClone.a(this.b);
+-        CommandData.a(this.b);
+-        CommandDatapack.a(this.b);
+-        CommandDebug.a(this.b);
+-        CommandGamemodeDefault.a(this.b);
++        // CommandClone.a(this.b); // derklaro
++        // CommandData.a(this.b); // derklaro
++        // CommandDatapack.a(this.b); // derklaro
++        // CommandDebug.a(this.b); // derklaro
++        // CommandGamemodeDefault.a(this.b); // derklaro
+         CommandDifficulty.a(this.b);
+         CommandEffect.a(this.b);
+-        CommandMe.a(this.b);
++        // CommandMe.a(this.b); // derklaro
+         CommandEnchant.a(this.b);
+         CommandXp.a(this.b);
+-        CommandFill.a(this.b);
+-        CommandForceload.a(this.b);
+-        CommandFunction.a(this.b);
++        // CommandFill.a(this.b); // derklaro
++        // CommandForceload.a(this.b); // derklaro
++        // CommandFunction.a(this.b); // derklaro
+         CommandGamemode.a(this.b);
+         CommandGamerule.a(this.b);
+         CommandGive.a(this.b);
+-        CommandHelp.a(this.b);
++        // CommandHelp.a(this.b); // derklaro
+         CommandKick.a(this.b);
+         CommandKill.a(this.b);
+-        CommandList.a(this.b);
+-        CommandLocate.a(this.b);
+-        CommandLocateBiome.a(this.b);
++        // CommandList.a(this.b); // derklaro
++        // CommandLocate.a(this.b); // derklaro
++        // CommandLocateBiome.a(this.b); // derklaro
+         CommandLoot.a(this.b);
+         CommandTell.a(this.b);
+-        CommandParticle.a(this.b);
+-        CommandPlaySound.a(this.b);
+-        CommandReload.a(this.b);
+-        CommandRecipe.a(this.b);
+-        CommandReplaceItem.a(this.b);
+-        CommandSay.a(this.b);
+-        CommandSchedule.a(this.b);
+-        CommandScoreboard.a(this.b);
+-        CommandSeed.a(this.b, commanddispatcher_servertype != CommandDispatcher.ServerType.INTEGRATED);
+-        CommandSetBlock.a(this.b);
+-        CommandSpawnpoint.a(this.b);
+-        CommandSetWorldSpawn.a(this.b);
+-        CommandSpectate.a(this.b);
+-        CommandSpreadPlayers.a(this.b);
+-        CommandStopSound.a(this.b);
++        // CommandParticle.a(this.b); // derklaro
++        // CommandPlaySound.a(this.b); // derklaro
++        // CommandReload.a(this.b); // derklaro
++        // CommandRecipe.a(this.b); // derklaro
++        // CommandReplaceItem.a(this.b); // derklaro
++        // CommandSay.a(this.b); // derklaro
++        // CommandSchedule.a(this.b); // derklaro
++        // CommandScoreboard.a(this.b); // derklaro
++        // CommandSeed.a(this.b, commanddispatcher_servertype != CommandDispatcher.ServerType.INTEGRATED); // derklaro
++        // CommandSetBlock.a(this.b); // derklaro
++        // CommandSpawnpoint.a(this.b); // derklaro
++        // CommandSetWorldSpawn.a(this.b); // derklaro
++        // CommandSpectate.a(this.b); // derklaro
++        // CommandSpreadPlayers.a(this.b); // derklaro
++        // CommandStopSound.a(this.b); // derklaro
+         CommandSummon.a(this.b);
+-        CommandTag.a(this.b);
+-        CommandTeam.a(this.b);
+-        CommandTeamMsg.a(this.b);
++        // CommandTag.a(this.b); // derklaro
++        // CommandTeam.a(this.b); // derklaro
++        // CommandTeamMsg.a(this.b); // derklaro
+         CommandTeleport.a(this.b);
+-        CommandTellRaw.a(this.b);
++        // CommandTellRaw.a(this.b); // derklaro
+         CommandTime.a(this.b);
+-        CommandTitle.a(this.b);
+-        CommandTrigger.a(this.b);
++        // CommandTitle.a(this.b); // derklaro
++        // CommandTrigger.a(this.b); // derklaro
+         CommandWeather.a(this.b);
+-        CommandWorldBorder.a(this.b);
++        // CommandWorldBorder.a(this.b); // derklaro
+         if (SharedConstants.d) {
+-            GameTestHarnessTestCommand.a(this.b);
++            // GameTestHarnessTestCommand.a(this.b); // derklaro
+         }
+ 
+         if (commanddispatcher_servertype.e) {
+-            CommandBanIp.a(this.b);
+-            CommandBanList.a(this.b);
+-            CommandBan.a(this.b);
+-            CommandDeop.a(this.b);
++            // CommandBanIp.a(this.b); // derklaro
++            // CommandBanList.a(this.b); // derklaro
++            // CommandBan.a(this.b); // derklaro
++            // CommandDeop.a(this.b); // derklaro
+             CommandOp.a(this.b);
+-            CommandPardon.a(this.b);
+-            CommandPardonIP.a(this.b);
+-            CommandSaveAll.a(this.b);
+-            CommandSaveOff.a(this.b);
+-            CommandSaveOn.a(this.b);
+-            CommandIdleTimeout.a(this.b);
++            // CommandPardon.a(this.b); // derklaro
++            // CommandPardonIP.a(this.b); // derklaro
++            // CommandSaveAll.a(this.b); // derklaro
++            // CommandSaveOff.a(this.b); // derklaro
++            // CommandSaveOn.a(this.b); // derklaro
++            // CommandIdleTimeout.a(this.b); // derklaro
+             CommandStop.a(this.b);
+             CommandWhitelist.a(this.b);
+-            net.pl3x.purpur.command.CreditsCommand.register(getDispatcher()); // Purpur
+-            net.pl3x.purpur.command.DemoCommand.register(getDispatcher()); // Purpur
+-            net.pl3x.purpur.command.PingCommand.register(getDispatcher()); // Purpur
+-            net.pl3x.purpur.command.TPSBarCommand.register(getDispatcher()); // Purpur
++            // net.pl3x.purpur.command.CreditsCommand.register(getDispatcher()); // derklaro // Purpur
++            // net.pl3x.purpur.command.DemoCommand.register(getDispatcher()); // derklaro // Purpur
++            // net.pl3x.purpur.command.PingCommand.register(getDispatcher()); // derklaro // Purpur
++            // net.pl3x.purpur.command.TPSBarCommand.register(getDispatcher()); // derklaro // Purpur
+         }
+ 
+         if (commanddispatcher_servertype.d) {
+-            CommandPublish.a(this.b);
++            // CommandPublish.a(this.b); // derklaro
+         }
+ 
+         this.b.findAmbiguities((commandnode, commandnode1, commandnode2, collection) -> {
+diff --git a/src/main/java/net/minecraft/network/protocol/game/PacketPlayOutMultiBlockChange.java b/src/main/java/net/minecraft/network/protocol/game/PacketPlayOutMultiBlockChange.java
+index e4bf350cb650d6deb0cea5f85fee66c6c92bc659..42e814731ab8fbb251119229c194523f414aa9cd 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/PacketPlayOutMultiBlockChange.java
++++ b/src/main/java/net/minecraft/network/protocol/game/PacketPlayOutMultiBlockChange.java
+@@ -28,7 +28,7 @@ public class PacketPlayOutMultiBlockChange implements Packet<PacketListenerPlayO
+         int i = 0;
+ 
+         for (ShortIterator shortiterator = shortset.iterator(); shortiterator.hasNext(); ++i) {
+-            short short0 = (Short) shortiterator.next();
++            short short0 = shortiterator.nextShort(); // derklaro - replace deprecated api usage
+ 
+             this.b[i] = short0;
+             this.c[i] = (chunksection != null) ? chunksection.getType(SectionPosition.a(short0), SectionPosition.b(short0), SectionPosition.c(short0)) : net.minecraft.world.level.block.Blocks.AIR.getBlockData(); // CraftBukkit - SPIGOT-6076, Mojang bug when empty chunk section notified
+diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
+index 176fc4c8b7c5ef45b29cb8aaa1b1ff16dbfc9b7c..0a465fae27a40d73276e5a1f120e1338e551915c 100644
+--- a/src/main/java/net/minecraft/server/MinecraftServer.java
++++ b/src/main/java/net/minecraft/server/MinecraftServer.java
+@@ -225,6 +225,11 @@ public abstract class MinecraftServer extends IAsyncTaskHandlerReentrant<TickTas
+     public final TickTimes tickTimes10s = new TickTimes(200);
+     public final TickTimes tickTimes60s = new TickTimes(1200);
+     // Paper end
++    // derklaro start
++    public final TickTimes tickTimes5m = new TickTimes(5 * 60 * 20);
++    public final TickTimes tickTimes10m = new TickTimes(10 * 60 * 20);
++    public final TickTimes tickTimes15m = new TickTimes(15 * 60 * 20);
++    // derklaro end
+     @Nullable
+     private KeyPair H;
+     @Nullable
+@@ -279,7 +284,7 @@ public abstract class MinecraftServer extends IAsyncTaskHandlerReentrant<TickTas
+     public static final int TPS = 20;
+     public static final int TICK_TIME = 1000000000 / TPS;
+     private static final int SAMPLE_INTERVAL = 20; // Paper
+-    public final double[] recentTps = new double[ 4 ]; // Purpur
++    public final double[] recentTps = new double[ 6 ]; // Purpur // derklaro
+     public boolean lagging = false; // Purpur
+     public final SlackActivityAccountant slackActivityAccountant = new SlackActivityAccountant();
+     // Spigot end
+@@ -1018,8 +1023,10 @@ public abstract class MinecraftServer extends IAsyncTaskHandlerReentrant<TickTas
+     private long lastTick = 0;
+     private long catchupTime = 0;
+     public final RollingAverage tps5s = new RollingAverage(5); // Purpur
++    public final RollingAverage tps10s = new RollingAverage(10); // derklaro
+     public final RollingAverage tps1 = new RollingAverage(60);
+     public final RollingAverage tps5 = new RollingAverage(60 * 5);
++    public final RollingAverage tps10 = new RollingAverage(60 * 10); // derklaro
+     public final RollingAverage tps15 = new RollingAverage(60 * 15);
+ 
+     public static class RollingAverage {
+@@ -1111,15 +1118,19 @@ public abstract class MinecraftServer extends IAsyncTaskHandlerReentrant<TickTas
+                         final long diff = curTime - tickSection;
+                         java.math.BigDecimal currentTps = TPS_BASE.divide(new java.math.BigDecimal(diff), 30, java.math.RoundingMode.HALF_UP);
+                         tps5s.add(currentTps, diff); // Purpur
++                        tps10s.add(currentTps, diff); // derklaro
+                         tps1.add(currentTps, diff);
+                         tps5.add(currentTps, diff);
++                        tps10.add(currentTps, diff); // derklaro
+                         tps15.add(currentTps, diff);
+                         // Backwards compat with bad plugins
+                         // Purpur start
+                         recentTps[0] = tps5s.getAverage();
+-                        recentTps[1] = tps1.getAverage();
+-                        recentTps[2] = tps5.getAverage();
+-                        recentTps[3] = tps15.getAverage();
++                        recentTps[1] = tps10s.getAverage(); // derklaro
++                        recentTps[2] = tps1.getAverage(); // derklaro
++                        recentTps[3] = tps5.getAverage(); // derklaro
++                        recentTps[4] = tps10.getAverage(); // derklaro
++                        recentTps[5] = tps15.getAverage(); // derklaro
+                         // Purpur end
+                         // Paper end
+                         lagging = recentTps[0] < net.pl3x.purpur.PurpurConfig.laggingThreshold; // Purpur
+@@ -1486,6 +1497,11 @@ public abstract class MinecraftServer extends IAsyncTaskHandlerReentrant<TickTas
+         tickTimes10s.add(this.ticks, l);
+         tickTimes60s.add(this.ticks, l);
+         // Paper end
++        // derklaro start
++        tickTimes5m.add(this.ticks, l);
++        tickTimes10m.add(this.ticks, l);
++        tickTimes15m.add(this.ticks, l);
++        // derklaro end
+ 
+         this.circularTimer.a(i1 - i);
+         this.methodProfiler.exit();
+@@ -1732,7 +1748,7 @@ public abstract class MinecraftServer extends IAsyncTaskHandlerReentrant<TickTas
+     }
+ 
+     protected void P() {
+-        MinecraftServer.LOGGER.info("Generating keypair");
++        // MinecraftServer.LOGGER.info("Generating keypair"); // derklaro - log only necessary stuff
+ 
+         try {
+             this.H = MinecraftEncryption.b();
+diff --git a/src/main/java/net/minecraft/server/commands/CommandGamemode.java b/src/main/java/net/minecraft/server/commands/CommandGamemode.java
+index f004d027d673ec09c768c3ab0734b6b099921ef9..a74b1d6e6cf0927ec617c9de9c8db8415d73db42 100644
+--- a/src/main/java/net/minecraft/server/commands/CommandGamemode.java
++++ b/src/main/java/net/minecraft/server/commands/CommandGamemode.java
+@@ -1,12 +1,8 @@
+ package net.minecraft.server.commands;
+ 
+ import com.mojang.brigadier.CommandDispatcher;
+-import com.mojang.brigadier.arguments.ArgumentType;
+ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+ import com.mojang.brigadier.context.CommandContext;
+-import java.util.Collection;
+-import java.util.Collections;
+-import java.util.Iterator;
+ import net.minecraft.SystemUtils;
+ import net.minecraft.commands.CommandListenerWrapper;
+ import net.minecraft.commands.arguments.ArgumentEntity;
+@@ -15,10 +11,33 @@ import net.minecraft.server.level.EntityPlayer;
+ import net.minecraft.world.level.EnumGamemode;
+ import net.minecraft.world.level.GameRules;
+ 
++import java.util.Collection;
++import java.util.Collections;
++import java.util.Iterator;
++
+ public class CommandGamemode {
+ 
+-    public static void a(CommandDispatcher<CommandListenerWrapper> commanddispatcher) {
+-        LiteralArgumentBuilder<CommandListenerWrapper> literalargumentbuilder = (LiteralArgumentBuilder) net.minecraft.commands.CommandDispatcher.a("gamemode").requires((commandlistenerwrapper) -> {
++  public static void a(CommandDispatcher<CommandListenerWrapper> commanddispatcher) {
++    // derklaro start - clean up and add /gamemode 0,1,2,3 back
++    LiteralArgumentBuilder<CommandListenerWrapper> builder = net.minecraft.commands.CommandDispatcher.literal("gamemode").requires(wrapper -> wrapper.hasPermission(2));
++
++    for (EnumGamemode value : EnumGamemode.values()) {
++      if (value != EnumGamemode.NOT_SET) {
++        // survival,adventure,creative,spectator
++        builder
++            .then(net.minecraft.commands.CommandDispatcher.literal(value.b()).executes(context -> a(context, Collections.singleton(context.getSource().h()), value))
++                .then(net.minecraft.commands.CommandDispatcher.argument("target", ArgumentEntity.d()).executes(context -> a(context, ArgumentEntity.f(context, "target"), value))));
++        // 0,1,2,3
++        builder
++            .then(net.minecraft.commands.CommandDispatcher.literal(Integer.toString(value.getId())).executes(context -> a(context, Collections.singleton(context.getSource().h()), value))
++                .then(net.minecraft.commands.CommandDispatcher.argument("target", ArgumentEntity.players()).executes(context -> a(context, ArgumentEntity.f(context, "target"), value))));
++      }
++    }
++
++    commanddispatcher.register(builder);
++
++      /*
++      LiteralArgumentBuilder<CommandListenerWrapper> literalargumentbuilder = (LiteralArgumentBuilder) net.minecraft.commands.CommandDispatcher.a("gamemode").requires((commandlistenerwrapper) -> {
+             return commandlistenerwrapper.hasPermission(2);
+         });
+         EnumGamemode[] aenumgamemode = EnumGamemode.values();
+@@ -37,44 +56,54 @@ public class CommandGamemode {
+         }
+ 
+         commanddispatcher.register(literalargumentbuilder);
+-    }
++        */
++    // derklaro end
++  }
+ 
+-    private static void a(CommandListenerWrapper commandlistenerwrapper, EntityPlayer entityplayer, EnumGamemode enumgamemode) {
+-        ChatMessage chatmessage = new ChatMessage("gameMode." + enumgamemode.b());
++  private static void a(CommandListenerWrapper commandlistenerwrapper, EntityPlayer entityplayer, EnumGamemode enumgamemode) {
++    ChatMessage chatmessage = new ChatMessage("gameMode." + enumgamemode.b());
+ 
+-        if (commandlistenerwrapper.getEntity() == entityplayer) {
+-            commandlistenerwrapper.sendMessage(new ChatMessage("commands.gamemode.success.self", new Object[]{chatmessage}), true);
+-        } else {
+-            if (commandlistenerwrapper.getWorld().getGameRules().getBoolean(GameRules.SEND_COMMAND_FEEDBACK)) {
+-                entityplayer.sendMessage(new ChatMessage("gameMode.changed", new Object[]{chatmessage}), SystemUtils.b);
+-            }
++    if (commandlistenerwrapper.getEntity() == entityplayer) {
++      commandlistenerwrapper.sendMessage(new ChatMessage("commands.gamemode.success.self", chatmessage), true); // derklaro
++    } else {
++      if (commandlistenerwrapper.getWorld().getGameRules().getBoolean(GameRules.SEND_COMMAND_FEEDBACK)) {
++        entityplayer.sendMessage(new ChatMessage("gameMode.changed", chatmessage), SystemUtils.b); // derklaro
++      }
+ 
+-            commandlistenerwrapper.sendMessage(new ChatMessage("commands.gamemode.success.other", new Object[]{entityplayer.getScoreboardDisplayName(), chatmessage}), true);
+-        }
++      commandlistenerwrapper.sendMessage(new ChatMessage("commands.gamemode.success.other", entityplayer.getScoreboardDisplayName(), chatmessage), true); // derklaro
++    }
++
++  }
+ 
++  private static int a(CommandContext<CommandListenerWrapper> commandcontext, Collection<EntityPlayer> collection, EnumGamemode enumgamemode) {
++    if (net.pl3x.purpur.PurpurConfig.commandGamemodeRequiresPermission && !commandcontext.getSource().testPermission(2, "minecraft.command.gamemode." + enumgamemode.b())) {
++      return 0; // Purpur
+     }
++    int i = 0;
++    // derklaro start
++    /*
++    Iterator iterator = collection.iterator();
+ 
+-    private static int a(CommandContext<CommandListenerWrapper> commandcontext, Collection<EntityPlayer> collection, EnumGamemode enumgamemode) {
+-        if (net.pl3x.purpur.PurpurConfig.commandGamemodeRequiresPermission && !commandcontext.getSource().testPermission(2, "minecraft.command.gamemode." + enumgamemode.b())) return 0; // Purpur
+-        int i = 0;
+-        Iterator iterator = collection.iterator();
+-
+-        while (iterator.hasNext()) {
+-            EntityPlayer entityplayer = (EntityPlayer) iterator.next();
+-
+-            if (entityplayer.playerInteractManager.getGameMode() != enumgamemode) {
+-                entityplayer.a(enumgamemode);
+-                // CraftBukkit start - handle event cancelling the change
+-                if (entityplayer.playerInteractManager.getGameMode() != enumgamemode) {
+-                    commandcontext.getSource().sendFailureMessage(new net.minecraft.network.chat.ChatComponentText("Failed to set the gamemode of '" + entityplayer.getName() + "'"));
+-                    continue;
+-                }
+-                // CraftBukkit end
+-                a((CommandListenerWrapper) commandcontext.getSource(), entityplayer, enumgamemode);
+-                ++i;
+-            }
+-        }
++    while (iterator.hasNext()) {
++      EntityPlayer entityplayer = (EntityPlayer) iterator.next();
++
++     */
++    for (EntityPlayer entityplayer : collection) {
++    // derklaro end
+ 
+-        return i;
++      if (entityplayer.playerInteractManager.getGameMode() != enumgamemode) {
++        entityplayer.a(enumgamemode);
++        // CraftBukkit start - handle event cancelling the change
++        if (entityplayer.playerInteractManager.getGameMode() != enumgamemode) {
++          commandcontext.getSource().sendFailureMessage(new net.minecraft.network.chat.ChatComponentText("Failed to set the gamemode of '" + entityplayer.getName() + "'"));
++          continue;
++        }
++        // CraftBukkit end
++        a((CommandListenerWrapper) commandcontext.getSource(), entityplayer, enumgamemode);
++        ++i;
++      }
+     }
++
++    return i;
++  }
+ }
+diff --git a/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java b/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
+index df6eaa94f2928242dbd69a918d0b0b919bd3436b..9d6e0a85052555aa2da0046cf6baf18b753de78b 100644
+--- a/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
++++ b/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
+@@ -236,7 +236,7 @@ public class DedicatedServer extends MinecraftServer implements IMinecraftServer
+         super.setIdleTimeout((Integer) dedicatedserverproperties.playerIdleTimeout.get());
+         this.i(dedicatedserverproperties.enforceWhitelist);
+         // this.saveData.setGameType(dedicatedserverproperties.gamemode); // CraftBukkit - moved to world loading
+-        DedicatedServer.LOGGER.info("Default game type: {}", dedicatedserverproperties.gamemode);
++        // DedicatedServer.LOGGER.info("Default game type: {}", dedicatedserverproperties.gamemode); // derklaro - log only necessary stuff
+         InetAddress inetaddress = null;
+ 
+         if (!this.getServerIp().isEmpty()) {
+@@ -265,6 +265,8 @@ public class DedicatedServer extends MinecraftServer implements IMinecraftServer
+         server.enablePlugins(org.bukkit.plugin.PluginLoadOrder.STARTUP);
+         // CraftBukkit end
+ 
++        // derklaro - no thanks, we all know
++        /*
+         if (!this.getOnlineMode()) {
+             DedicatedServer.LOGGER.warn("**** SERVER IS RUNNING IN OFFLINE/INSECURE MODE!");
+             DedicatedServer.LOGGER.warn("The server will make no attempt to authenticate usernames. Beware.");
+@@ -279,6 +281,8 @@ public class DedicatedServer extends MinecraftServer implements IMinecraftServer
+             // Spigot end
+             DedicatedServer.LOGGER.warn("To change this, set \"online-mode\" to \"true\" in the server.properties file.");
+         }
++        // derklaro end
++         */
+ 
+         if (!NameReferencingFileConverter.e(this)) {
+             return false;
+@@ -290,8 +294,10 @@ public class DedicatedServer extends MinecraftServer implements IMinecraftServer
+             TileEntitySkull.a(this.getUserCache());
+             TileEntitySkull.a(this.getMinecraftSessionService());
+             UserCache.a(this.getOnlineMode());
++            if (dedicatedserverproperties.loadDefaultLevel) { // derklaro
+             DedicatedServer.LOGGER.info("Preparing level \"{}\"", this.getWorld());
+             this.loadWorld(convertable.getLevelName()); // CraftBukkit
++            } // derklaro
+             long j = SystemUtils.getMonotonicNanos() - i;
+             String s = String.format(Locale.ROOT, "%.3fs", (double) j / 1.0E9D);
+ 
+diff --git a/src/main/java/net/minecraft/server/dedicated/DedicatedServerProperties.java b/src/main/java/net/minecraft/server/dedicated/DedicatedServerProperties.java
+index f33309f4c1ad92960d0634f3f5b8105c284f26a2..dd06b2c1601be2d8773457127feb95aaf6c68cd5 100644
+--- a/src/main/java/net/minecraft/server/dedicated/DedicatedServerProperties.java
++++ b/src/main/java/net/minecraft/server/dedicated/DedicatedServerProperties.java
+@@ -29,6 +29,7 @@ public class DedicatedServerProperties extends PropertyManager<DedicatedServerPr
+     public final String motd = this.getString("motd", "A Minecraft Server");
+     public final boolean forceGamemode = this.getBoolean("force-gamemode", false);
+     public final boolean enforceWhitelist = this.getBoolean("enforce-whitelist", false);
++    public final boolean loadDefaultLevel = this.getBoolean("load-default-level", true); // derklaro
+     public final EnumDifficulty difficulty;
+     public final EnumGamemode gamemode;
+     public final String levelName;
+diff --git a/src/main/java/net/minecraft/server/level/PlayerChunk.java b/src/main/java/net/minecraft/server/level/PlayerChunk.java
+index 06157bb07cce3ba24087ceaca7138b5609b37b5b..852643123a2464b22b75be96ce6cf5ed474dc393 100644
+--- a/src/main/java/net/minecraft/server/level/PlayerChunk.java
++++ b/src/main/java/net/minecraft/server/level/PlayerChunk.java
+@@ -434,10 +434,12 @@ public class PlayerChunk {
+             int i = 0;
+ 
+             int j;
+-
++            /* derklaro start - moved down
+             for (j = 0; j < this.dirtyBlocks.length; ++j) {
+                 i += this.dirtyBlocks[j] != null ? this.dirtyBlocks[j].size() : 0;
+             }
++            derklaro end
++            */
+ 
+             this.x |= i >= 64;
+             if (this.s != 0 || this.r != 0) {
+@@ -450,6 +452,7 @@ public class PlayerChunk {
+                 ShortSet shortset = this.dirtyBlocks[j];
+ 
+                 if (shortset != null) {
++                    i += shortset.size(); // derklaro - moved from above
+                     SectionPosition sectionposition = SectionPosition.a(chunk.getPos(), j);
+ 
+                     if (shortset.size() == 1) {
+diff --git a/src/main/java/net/minecraft/server/level/WorldServer.java b/src/main/java/net/minecraft/server/level/WorldServer.java
+index 52cfaedd376021c9e43a5149ac82427d0bcd6904..383efa9da5cb7453cff3f449ffedadcdf39d5c28 100644
+--- a/src/main/java/net/minecraft/server/level/WorldServer.java
++++ b/src/main/java/net/minecraft/server/level/WorldServer.java
+@@ -1280,10 +1280,11 @@ public class WorldServer extends World implements GeneratorAccessSeed {
+         int k = chunkcoordintpair.e();
+         GameProfilerFiller gameprofilerfiller = this.getMethodProfiler();
+ 
+-        gameprofilerfiller.enter("thunder");
++        // gameprofilerfiller.enter("thunder"); derklaro - move down
+         final BlockPosition.MutableBlockPosition blockposition = this.chunkTickMutablePosition; // Paper - use mutable to reduce allocation rate, final to force compile fail on change
+ 
+         if (!this.paperConfig.disableThunder && flag && chunk.shouldDoLightning(this.random) && this.W()) { // Paper - Disable thunder // Airplane - check this.W last // Airplane - replace random with shouldDoLighting
++            gameprofilerfiller.enter("thunder"); // derklaro - only log if entering
+             blockposition.setValues(this.a(this.a(j, 0, k, 15))); // Paper
+             if (this.isRainingAt(blockposition)) {
+                 DifficultyDamageScaler difficultydamagescaler = this.getDamageScaler(blockposition);
+@@ -1310,10 +1311,12 @@ public class WorldServer extends World implements GeneratorAccessSeed {
+                 entitylightning.setEffect(flag1);
+                 this.strikeLightning(entitylightning, org.bukkit.event.weather.LightningStrikeEvent.Cause.WEATHER); // CraftBukkit
+             }
++            gameprofilerfiller.exit(); // derklaro exit if needed
+         }
+ 
+-        gameprofilerfiller.exitEnter("iceandsnow");
++        // gameprofilerfiller.exitEnter("iceandsnow"); derklaro - moved down
+         if (!this.paperConfig.disableIceAndSnow && (this.currentIceAndSnowTick++ & 15) == 0) { // Paper - Disable ice and snow // Paper - optimise random ticking // Airplane - optimize further random ticking
++            gameprofilerfiller.exitEnter("iceandsnow"); // derklaro - only enter if needed
+             // Paper start - optimise chunk ticking
+             // Tuinity start - optimise chunk ice snow ticking
+             BiomeBase[] biomeCache = this.biomeBaseCache;
+@@ -1344,10 +1347,11 @@ public class WorldServer extends World implements GeneratorAccessSeed {
+                 chunk.getType(blockposition).getBlock().c((World) this, blockposition);
+                 // Paper end
+             }
++            gameprofilerfiller.exit(); // derklaro - exit if needed
+         }
+ 
+         // Paper start - optimise random block ticking
+-        gameprofilerfiller.exit();
++        // gameprofilerfiller.exit(); derklaro - not needed anymore
+         if (i > 0) {
+             gameprofilerfiller.enter("randomTick");
+             timings.chunkTicksBlocks.startTiming(); // Paper
+diff --git a/src/main/java/net/minecraft/server/network/ServerConnection.java b/src/main/java/net/minecraft/server/network/ServerConnection.java
+index 92836f1200461ba7fff2f8bcb5e1755ec9a0c9ce..c0b69df40bd18aff1a128af9be2acdd79f4816fe 100644
+--- a/src/main/java/net/minecraft/server/network/ServerConnection.java
++++ b/src/main/java/net/minecraft/server/network/ServerConnection.java
+@@ -87,10 +87,10 @@ public class ServerConnection {
+                 ServerConnection.LOGGER.info("Using default channel type");
+             }
+ 
+-            // Tuinity start - indicate Velocity natives in use
+-            ServerConnection.LOGGER.info("Tuinity: Using " + com.velocitypowered.natives.util.Natives.compress.getLoadedVariant() + " compression from Velocity.");
+-            ServerConnection.LOGGER.info("Tuinity: Using " + com.velocitypowered.natives.util.Natives.cipher.getLoadedVariant() + " cipher from Velocity.");
+-            // Tuinity end
++            // Tuinity start - indicate Velocity natives in use // derklaro - log only necessary stuff
++            // ServerConnection.LOGGER.info("Tuinity: Using " + com.velocitypowered.natives.util.Natives.compress.getLoadedVariant() + " compression from Velocity.");
++            // ServerConnection.LOGGER.info("Tuinity: Using " + com.velocitypowered.natives.util.Natives.cipher.getLoadedVariant() + " cipher from Velocity.");
++            // Tuinity end // derklaro end
+ 
+             this.listeningChannels.add(((ServerBootstrap) ((ServerBootstrap) (new ServerBootstrap()).channel(oclass)).childHandler(new ChannelInitializer<Channel>() {
+                 protected void initChannel(Channel channel) throws Exception {
+diff --git a/src/main/java/net/pl3x/purpur/PurpurConfig.java b/src/main/java/net/pl3x/purpur/PurpurConfig.java
+index 61f385021e8e870a4cb1b9c2744105988c8b709a..5183595d945362d34ef7d46fd2d8d3ccb2350bcd 100644
+--- a/src/main/java/net/pl3x/purpur/PurpurConfig.java
++++ b/src/main/java/net/pl3x/purpur/PurpurConfig.java
+@@ -3,6 +3,7 @@ package net.pl3x.purpur;
+ import co.aikar.timings.TimingsManager;
+ import com.destroystokyo.paper.PaperConfig;
+ import com.google.common.base.Throwables;
++import me.derklaro.BetterTicksPerSecondCommand;
+ import net.minecraft.locale.LocaleLanguage;
+ import net.minecraft.server.MinecraftServer;
+ import net.minecraft.world.entity.EntitySize;
+@@ -57,7 +58,8 @@ public class PurpurConfig {
+         verbose = getBoolean("verbose", false);
+ 
+         commands = new HashMap<>();
+-        commands.put("purpur", new PurpurCommand("purpur"));
++        // commands.put("purpur", new PurpurCommand("purpur")); // derklaro
++        commands.put("tps", new BetterTicksPerSecondCommand()); // derklaro
+ 
+         version = getInt("config-version", 12);
+         set("config-version", 12);
+diff --git a/src/main/java/net/pl3x/purpur/PurpurVersionFetcher.java b/src/main/java/net/pl3x/purpur/PurpurVersionFetcher.java
+index cabfcebf9f944f7a2a2a1cffc7401435803a8741..4ae987f8aa83db7df66be59bd39ea4a5e2815bb1 100644
+--- a/src/main/java/net/pl3x/purpur/PurpurVersionFetcher.java
++++ b/src/main/java/net/pl3x/purpur/PurpurVersionFetcher.java
+@@ -32,7 +32,7 @@ public class PurpurVersionFetcher implements VersionFetcher {
+     @Nonnull
+     @Override
+     public Component getVersionMessage(@Nonnull String serverVersion) {
+-        String[] parts = serverVersion.substring("git-Purpur-".length()).split("[-\\s]");
++        String[] parts = serverVersion.substring("git-DS-Purpur-".length()).split("[-\\s]"); // derklaro
+         final Component updateMessage = getUpdateStatusMessage("pl3xgaming/Purpur", GITHUB_BRANCH_NAME, parts[0]);
+         final Component history = getHistory();
+ 
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+index 7cfa041d646f602221cbb0d8899ff682db7ca9ee..6c975925c2daa31d33b4a90d1da987d9cb15401f 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+@@ -233,7 +233,7 @@ import javax.annotation.Nullable; // Paper
+ import javax.annotation.Nonnull; // Paper
+ 
+ public final class CraftServer implements Server {
+-    private final String serverName = "Purpur"; // Paper // Tuinity // Airplane // Purpur
++    private final String serverName = "DS-Purpur"; // Paper // Tuinity // Airplane // Purpur // derklaro
+     private final String serverVersion;
+     private final String bukkitVersion = Versioning.getBukkitVersion();
+     private final Logger logger = Logger.getLogger("Minecraft");
+@@ -286,7 +286,17 @@ public final class CraftServer implements Server {
+                 return player.getBukkitEntity();
+             }
+         }));
+-        this.serverVersion = CraftServer.class.getPackage().getImplementationVersion();
++        // derklaro start - change naming strategy
++        // this.serverVersion = CraftServer.class.getPackage().getImplementationVersion();
++        String version = CraftServer.class.getPackage().getImplementationVersion();
++        java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("git-DS-Purpur-([a-zA-Z0-9]+)$").matcher(version);
++
++        if (matcher.matches()) {
++            this.serverVersion = matcher.group(1);
++        } else {
++            this.serverVersion = "Unknown";
++        }
++        // derklaro end
+ 
+         Bukkit.setServer(this);
+ 
+@@ -351,7 +361,7 @@ public final class CraftServer implements Server {
+         warningState = WarningState.value(configuration.getString("settings.deprecated-verbose"));
+         TicketType.PLUGIN.loadPeriod = Math.min(20, configuration.getInt("chunk-gc.period-in-ticks")); // Paper - cap plugin loads to 1 second
+         minimumAPI = configuration.getString("settings.minimum-api");
+-        loadIcon();
++        // loadIcon(); // derklaro
+         datapackManager = new PaperDatapackManager(console.getResourcePackRepository()); // Paper
+     }
+ 
+@@ -2320,12 +2330,17 @@ public final class CraftServer implements Server {
+     // Paper - Add getTPS API - Further improve tick loop
+     @Override
+     public double[] getTPS() {
++        return net.minecraft.server.MinecraftServer.getServer().recentTps;
++        // derklaro start - no need for a new array every time
++        /*
+         return new double[] {
+                 net.minecraft.server.MinecraftServer.getServer().tps5s.getAverage(), // Purpur
+                 net.minecraft.server.MinecraftServer.getServer().tps1.getAverage(),
+                 net.minecraft.server.MinecraftServer.getServer().tps5.getAverage(),
+                 net.minecraft.server.MinecraftServer.getServer().tps15.getAverage()
+         };
++        */
++        // derklaro end
+     }
+ 
+     @Override
+diff --git a/src/main/java/org/spigotmc/SpigotConfig.java b/src/main/java/org/spigotmc/SpigotConfig.java
+index 564285c1c96f3faf99022eec639dbefed54f2a7d..dc5652469f29c61e733de94d9467b9a43a710afe 100644
+--- a/src/main/java/org/spigotmc/SpigotConfig.java
++++ b/src/main/java/org/spigotmc/SpigotConfig.java
+@@ -69,7 +69,7 @@ public class SpigotConfig
+         config.options().copyDefaults( true );
+ 
+         commands = new HashMap<String, Command>();
+-        commands.put( "spigot", new SpigotCommand( "spigot" ) );
++        // commands.put( "spigot", new SpigotCommand( "spigot" ) ); // derklaro
+ 
+         version = getInt( "config-version", 12 );
+         set( "config-version", 12 );
+@@ -228,7 +228,7 @@ public class SpigotConfig
+         restartOnCrash = getBoolean( "settings.restart-on-crash", restartOnCrash );
+         restartScript = getString( "settings.restart-script", restartScript );
+         restartMessage = transform( getString( "messages.restart", "Server is restarting" ) );
+-        commands.put( "restart", new RestartCommand( "restart" ) );
++        // commands.put( "restart", new RestartCommand( "restart" ) ); // derklaro
+         //WatchdogThread.doStart( timeoutTime, restartOnCrash ); // Paper - moved to PaperConfig
+     }
+ 
+@@ -246,7 +246,7 @@ public class SpigotConfig
+     {
+         int count = getInt( "settings.netty-threads", 4 );
+         System.setProperty( "io.netty.eventLoopThreads", Integer.toString( count ) );
+-        Bukkit.getLogger().log( Level.INFO, "Using {0} threads for Netty based IO", count );
++        // Bukkit.getLogger().log( Level.INFO, "Using {0} threads for Netty based IO", count ); // derklaro - log only necessary stuff
+     }
+ 
+     public static boolean disableStatSaving;
+@@ -283,14 +283,14 @@ public class SpigotConfig
+ 
+     private static void tpsCommand()
+     {
+-        commands.put( "tps", new TicksPerSecondCommand( "tps" ) );
++        // commands.put( "tps", new TicksPerSecondCommand( "tps" ) ); // derklaro
+     }
+ 
+     public static int playerSample;
+     private static void playerSample()
+     {
+         playerSample = Math.max( getInt( "settings.sample-count", 12 ), 0 ); // Paper - Avoid negative counts
+-        Bukkit.getLogger().log( Level.INFO, "Server Ping Player Sample Count: {0}", playerSample ); // Paper - Use logger
++        // Bukkit.getLogger().log( Level.INFO, "Server Ping Player Sample Count: {0}", playerSample ); // Paper - Use logger // derklaro - log only necessary stuff
+     }
+ 
+     public static int playerShuffle;
+@@ -379,10 +379,10 @@ public class SpigotConfig
+ 
+         if ( LogManager.getRootLogger().isTraceEnabled() )
+         {
+-            Bukkit.getLogger().info( "Debug logging is enabled" );
++            // Bukkit.getLogger().info( "Debug logging is enabled" ); // derklaro - log only necessary stuff
+         } else
+         {
+-            Bukkit.getLogger().info( "Debug logging is disabled" );
++            // Bukkit.getLogger().info( "Debug logging is disabled" ); // derklaro - log only necessary stuff
+         }
+     }
+ 

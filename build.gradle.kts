@@ -12,8 +12,8 @@ toothpick {
     groupId = "net.pl3x.purpur"
     forkUrl = "https://github.com/pl3xgaming/Purpur"
     val versionTag = System.getenv("BUILD_NUMBER")
-        ?: "\"${gitCmd("rev-parse", "--short", "HEAD").output}\""
-    forkVersion = "git-$forkName-$versionTag"
+        ?: "${gitCmd("rev-parse", "--short", "HEAD").output}" // derklaro
+    forkVersion = "git-DS-$forkName-$versionTag" // derklaro
 
     minecraftVersion = "1.16.5"
     nmsPackage = "1_16_R3"
